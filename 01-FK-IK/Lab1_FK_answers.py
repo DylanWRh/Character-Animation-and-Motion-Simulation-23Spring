@@ -35,6 +35,35 @@ def part1_calculate_T_pose(bvh_file_path):
     joint_offset = None
     
     #### Write Your Code Here ####
+    joint_name = []
+    joint_parent = []
+    joint_offset = []
+
+    my_stack = []
+    cnt = -1
+
+    with open(bvh_file_path, 'r') as f:
+        lines = f.readlines()
+        for line in lines:
+            line_lst = line.split()
+            if line_lst[0] == 'ROOT':
+                joint_name.append(line_lst[1])
+                joint_parent.append(-1)
+            elif line_lst[0] == '{':
+                cnt += 1
+                my_stack.append(cnt)
+            elif line_lst[0] == 'OFFSET':
+                joint_offset.append([float(i) for i in line_lst[1:]])
+            elif line_lst[0] == 'JOINT':
+                joint_name.append(line_lst[1])
+                joint_parent.append(my_stack[-1])
+            elif line_lst[0] == '}':
+                my_stack.pop()
+            elif line_lst[0] == 'MOTION':
+                break
+    joint_offset = np.array(joint_offset)
+
+
     return joint_name, joint_parent, joint_offset
 
 
@@ -55,6 +84,26 @@ def part2_forward_kinematics(joint_name, joint_parent, joint_offset, motion_data
     joint_orientations = None
     
     #### Write Your Code Here ####
+    joint_positions = []
+    joint_orientations = []
+
+    channels = motion_data[frame_id].reshape(-1, 3)
+    quats = R.from_euler('XYZ', channels[1:], degrees=True) # Rotation
+
+    for i, parent in enumerate(joint_parent):
+        if parent == -1:
+            joint_positions.append(channels[0])
+            joint_orientations.append(quats[0].as_quat())
+        else:
+            rot = R.from_quat(joint_orientations[parent]) * quats[i] 
+            joint_orientations.append(R.as_quat(rot))
+
+            rot_offset = R.from_quat(joint_orientations[parent]).apply(joint_offset[i])
+            joint_positions.append(joint_positions[parent] + rot_offset)
+
+    joint_positions = np.array(joint_positions)
+    joint_orientations = np.array(joint_orientations)
+
     return joint_positions, joint_orientations
 
 
@@ -72,4 +121,32 @@ def part3_retarget_func(T_pose_bvh_path, A_pose_bvh_path):
     motion_data = None
     
     #### Write Your Code Here ####
+    joint_name_T, joint_parent_T, joint_offset_T = part1_calculate_T_pose(T_pose_bvh_path)
+    joint_name_A, joint_parent_A, joint_offset_A = part1_calculate_T_pose(A_pose_bvh_path)
+    motion_data_A = load_motion_data(A_pose_bvh_path)
+    N, X = motion_data_A.shape
+
+    pos_data_A = motion_data_A[:, :3]
+    rot_data_A = motion_data_A[:, 3:]
+
+    motion_data = np.zeros(motion_data_A.shape)
+
+    motion_data_dict = {}
+
+    for i, name in enumerate(joint_name_A):
+        motion_data_dict[name] = rot_data_A[:, 3*i:3*(i+1)]
+    
+    for i, name in enumerate(joint_name_T):
+        if name == 'LeftArm':
+            motion_data_dict[name][:, -1] -= 45
+        elif name == 'RightArm':
+            motion_data_dict[name][:, -1] += 45
+        elif name == 'LeftUpLeg':
+            motion_data_dict[name][:, -1] += 15
+        elif name == 'RightUpLeg':
+            motion_data_dict[name][:, -1] -= 15
+        motion_data[:, 3*(i+1):3*(i+2)] = motion_data_dict[name]
+    
+    motion_data[:, :3] = pos_data_A
+
     return motion_data
