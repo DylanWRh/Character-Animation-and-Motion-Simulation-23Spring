@@ -65,7 +65,6 @@ def calc_joint_from_path(meta_data, joint_positions, joint_orientations, path_po
     # path = path2 + inverse(path1)
     for i in range(len(path2) - 1): # rt -> RT
         joint_orientations[path[i+1]] = path_orientations[i].as_quat()
-    joint_orientations[path2[-1]] = path_orientations[len(path2) - 1].as_quat()
     for i in range(len(path1) - 1): # RT -> end
         joint_orientations[path[i+len(path2)]] = path_orientations[i + len(path2)].as_quat()
 
