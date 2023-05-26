@@ -10,8 +10,6 @@ conda create -n MoCCA python=3.8
 conda activate MoCCA
 conda install numpy scipy
 pip install panda3d
-cd MoCCASimuBackend
-pip install .
 ```
 MacOS环境建议使用virtualenv建立新的虚拟环境
 ```bash
@@ -26,11 +24,12 @@ pip install .
 
 > 本作业只允许使用 `numpy`， `scipy`以及其依赖的库。评测时也以此为准。作业文件中请不要import除此之外的库。
 
-> MoCCASimuBackend为本次作业的仿真后端，需要使用cmake进行编译。关于cmake安装Windows环境可以参照[教程](https://blog.csdn.net/weixin_43986229/article/details/128027840)，MacOS可以使用brew安装（需要先安装homebrew）
+> MoCCASimuBackend为本次作业的仿真后端，需要使用cmake进行编译，MacOS可以使用brew安装（需要先安装homebrew）
 ```bash
 brew install cmake
 ```
-> 如果在import MoCCASimuBackend时遇到numpy有关的报错，请先确认numpy版本为最新版，并卸载后重新编译安装。
+目前提供了Windows上编译好的动态链接库（python3.8和3.10版本），不需要安装了。
+> 如果在import MoCCASimuBackend时遇到numpy有关的报错，请更新numpy版本>=1.23，并卸载后重新编译安装。
 
 完成后可以运行`task0_build_and_run.py`，你将会看到一个起始T-pose的角色，随着物理仿真他会跌倒在地上。
 

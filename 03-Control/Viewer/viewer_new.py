@@ -243,9 +243,6 @@ class SimpleViewer(ShowBase):
         self.add_noise_force = False
         self.additional_force = np.zeros(3)
         self.__additional_force_cnt = 0
-        import time
-        time.sleep(3)
-        pass
     
     def receive_space(self):
         self.update_flag = not self.update_flag
