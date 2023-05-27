@@ -18,4 +18,14 @@ def skinning(joint_translation, joint_orientation, T_pose_joint_translation, T_p
     vertex_translation = np.zeros_like(T_pose_vertex_translation)
     vertex_translation = T_pose_vertex_translation
     
+    N = len(skinning_idx)
+    Q = R.from_quat(joint_orientation[skinning_idx].reshape([N * 4, 4])).as_matrix().reshape([N, 4, 3, 3]) # (N, 4, 3, 3)
+    joint_targ = joint_translation[skinning_idx] # (N, 4, 3)
+    joint_orig = T_pose_joint_translation[skinning_idx] # (N, 4, 3)
+
+    r = (T_pose_vertex_translation[:, None, :] - joint_orig) # (N, 4, 3)
+    Qr = np.einsum('...ij,...j->...i', Q, r) # (N, 4, 3)
+
+    vertex_translation = np.einsum('...ij,...i->...j', (Qr + joint_targ), skinning_weight)
+
     return vertex_translation
