@@ -16,6 +16,6 @@ def skinning(joint_translation, joint_orientation, T_pose_joint_translation, T_p
         vertex_translation: (N,3)的ndarray, 蒙皮顶点的位置
     """
     vertex_translation = np.zeros_like(T_pose_vertex_translation)
-    
+    vertex_translation = T_pose_vertex_translation
     
     return vertex_translation
