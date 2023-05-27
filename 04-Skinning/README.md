@@ -15,6 +15,8 @@ pip install panda3d
 
 > 本作业只允许使用 `numpy`， `scipy`，`pytorch`(`tensor-flow`, `jitter`)以及其依赖的库。评测时也以此为准。版本限定到2022年10月31日之前的发布版本。作业文件中请不要import除此之外的库。
 
+在运行代码前，请参考[Blend2Bam](./Blend2Bam.md)的方式将`material/test.gltf`转化为`bam`文件，并存储为`material/test.bam`。
+
 完成后可以运行`task0_build_and_run.py`，你将会看到一个带有蒙皮的T_pose人物
 
 
