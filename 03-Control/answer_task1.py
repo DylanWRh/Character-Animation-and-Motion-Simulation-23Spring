@@ -12,8 +12,8 @@ def part1_cal_torque(pose, physics_info: PhysicsInfo, **kargs):
     输出： global_torque: (16, 3)的numpy数组，表示每个关节的全局坐标下的目标力矩，因为不需要控制方向，根节点力矩会被后续代码无视
     '''
     # ------一些提示代码，你可以随意修改------------#
-    kp = kargs.get('kp', 500) # 需要自行调整kp和kd！ 而且也可以是一个数组，指定每个关节的kp和kd
-    kd = kargs.get('kd', 20) 
+    kp = kargs.get('kp', 40) # 需要自行调整kp和kd！ 而且也可以是一个数组，指定每个关节的kp和kd
+    kd = kargs.get('kd', 10) 
     parent_index = physics_info.parent_index
     joint_name = physics_info.joint_name
     # 注意关节没有自己的朝向和角速度，这里用子body的朝向和角速度表示此时关节的信息
@@ -21,8 +21,17 @@ def part1_cal_torque(pose, physics_info: PhysicsInfo, **kargs):
     joint_avel = physics_info.get_body_angular_velocity()
 
     global_torque = np.zeros((16,3))
+    
+    joint_rotation_R = (R.from_quat(joint_orientation[parent_index])).inv() * R.from_quat(joint_orientation)
+    joint_rotation_R[0] = R.from_quat(joint_orientation[0])
+    local_torque = kp * (R.from_quat(pose) * joint_rotation_R.inv()).as_euler('XYZ', degrees=True) - kd * joint_avel
+    global_torque = R.from_quat(joint_orientation[parent_index]).apply(local_torque)
+    global_torque[0] = local_torque[0]
+    thresh = 600
+    global_torque = np.clip(global_torque, -thresh, thresh)
+
     # 抹去根节点力矩
-    global_torque[0] = np.zeros_like(global_torque[0])
+    # global_torque[0] = np.zeros_like(global_torque[0])
     return global_torque
 
 def part2_cal_float_base_torque(target_position, pose, physics_info, **kargs):
@@ -37,12 +46,16 @@ def part2_cal_float_base_torque(target_position, pose, physics_info, **kargs):
         3. 可以适当将根节点目标位置上提以产生更大的辅助力，使角色走得更自然
     '''
     # ------一些提示代码，你可以随意修改------------#
-    global_torque = part1_cal_torque(pose, physics_info)
-    kp = kargs.get('root_kp', 4000) # 需要自行调整root的kp和kd！
-    kd = kargs.get('root_kd', 20)
+    global_torque = part1_cal_torque(pose, physics_info, kp=40, kd=10)
+    kp = kargs.get('root_kp', 6000) # 需要自行调整root的kp和kd！
+    kd = kargs.get('root_kd', 10)
     root_position, root_velocity = physics_info.get_root_pos_and_vel()
     global_root_force = np.zeros((3,))
     global_root_torque = global_torque[0]
+    target_position[1] += 0.001
+    global_root_force = kp * (target_position - root_position) - kd * root_velocity
+    thresh = 1000
+    global_root_force = np.clip(global_root_force, -thresh, thresh)
     return global_root_force, global_root_torque, global_torque
 
 frame_cnt = 0
@@ -63,11 +76,28 @@ def part3_cal_static_standing_torque(bvh: BVHMotion, physics_info):
     
     joint_positions = physics_info.get_joint_translation()
     # 适当前移，这里的权重需要你自己调整
-    tar_pos = tar_pos * 0.8 + joint_positions[7] * 0.1 + joint_positions[8] * 0.1
+    tar_pos = tar_pos * 0.8 + bvh.joint_position[7] * 0.1 + joint_positions[8] * 0.1
     global frame_cnt
     # 修改根节点目标位置让角色摇摆起来，可以角色先站稳之后再周期性摇摆
-    tar_pos += 0.1 * np.sin((frame_cnt)/400)
-    frame_cnt += 1
+    tar_pos += 0.1 * np.sin(frame_cnt/400)
+    # frame_cnt += 1
+    
     # 抹去根节点力矩
     torque = np.zeros((16,3))
-    return torque
+
+    global_torque = part1_cal_torque(pose, physics_info, kp=40, kd=10)
+    joint_velocity = physics_info.get_body_velocity()
+    joint_mass = physics_info.get_body_mass()
+
+    mass = np.sum(joint_mass)
+    com = np.sum(joint_mass[:, None] * joint_positions, axis=0) / mass
+    com_velocity = np.sum(joint_mass[:, None] * joint_velocity, axis=0) / mass
+
+
+    Kp = 600
+    Kd = 10
+    virtual_force = Kp * (tar_pos - com) - Kd * com_velocity
+    feedback_torque = np.cross(com[None, :] - joint_positions, virtual_force)
+    torque = global_torque - feedback_torque
+    thresh = 1000
+    return np.clip(torque, -thresh, thresh)
